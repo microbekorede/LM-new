@@ -39,7 +39,7 @@ export default async function handler(request: Request): Promise<Response> {
 
     // Email is optional: booking storage remains successful even if notifications are not configured.
     const apiKey = process.env.RESEND_API_KEY;
-    const notifyTo = process.env.BOOKING_NOTIFICATION_EMAIL;
+    const notifyTo = process.env.BOOKING_NOTIFICATION_EMAIL || 'microbekorede@gmail.com';
     const from = process.env.BOOKING_EMAIL_FROM;
     if (apiKey && notifyTo && from) {
       const details = [
