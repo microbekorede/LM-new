@@ -1,4 +1,4 @@
-import { bodyOf, isAdmin, json, safeText, store, unauthorized, validPhone } from '../lib/shared';
+import { bodyOf, isAdmin, json, safeText, store, unauthorized, validPhone, withinRateLimit } from '../lib/shared';
 
 export default async function handler(request: Request): Promise<Response> {
   try {
@@ -11,6 +11,7 @@ export default async function handler(request: Request): Promise<Response> {
       return json(200, { messages });
     }
     if (request.method !== 'POST') return json(405, { message: 'Method not allowed.' });
+    if (!(await withinRateLimit(request, 'contact', 5, 60 * 60 * 1000))) return json(429, { message: 'Too many requests. Please wait and try again later.' });
     const body = await bodyOf(request);
     if (!body) return json(400, { message: 'Invalid request body.' });
     const name = safeText(body.name, 100);
