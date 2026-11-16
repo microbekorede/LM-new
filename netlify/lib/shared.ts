@@ -1,5 +1,5 @@
 import { getStore } from '@netlify/blobs';
-import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
+import { createHmac, timingSafeEqual, randomUUID, createHash } from 'node:crypto';
 
 export const json = (status: number, data: unknown, headers: Record<string, string> = {}): Response =>
   new Response(JSON.stringify(data), {
@@ -12,6 +12,24 @@ export async function bodyOf(request: Request): Promise<any | null> {
 }
 
 export const store = () => getStore('lumina-production');
+
+// Lightweight per-IP request throttling. Only a one-way hash of the network address is stored.
+export async function withinRateLimit(request: Request, scope: string, limit: number, windowMs: number): Promise<boolean> {
+  const address = request.headers.get('x-nf-client-connection-ip')
+    || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || 'unknown';
+  const fingerprint = createHash('sha256').update(address).digest('hex').slice(0, 32);
+  const db = store();
+  const key = `rate:${scope}:${fingerprint}`;
+  const now = Date.now();
+  const previous = await db.get(key, { type: 'json' }) as { startedAt?: number; count?: number } | null;
+  const active = previous && Number.isFinite(previous.startedAt) && now - Number(previous.startedAt) < windowMs;
+  const startedAt = active ? Number(previous!.startedAt) : now;
+  const count = active ? Number(previous!.count || 0) : 0;
+  if (count >= limit) return false;
+  await db.setJSON(key, { startedAt, count: count + 1 });
+  return true;
+}
 const cookieName = 'lumina_admin';
 
 function sign(value: string) {
