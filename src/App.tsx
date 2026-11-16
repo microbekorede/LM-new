@@ -18,7 +18,8 @@ const SERVICE_OPTIONS = [
   { id: "solar", title: "Solar System Installation", desc: "Complete hybrid or off-grid rooftop solar installations with lithium storage.", image: IMAGES.solar, badge: "Popular" },
   { id: "audit", title: "Energy Audit & Site Survey", desc: "Comprehensive power load evaluation, voltage testing & sizing analysis.", image: IMAGES.audit, badge: "Recommended" },
   { id: "maintenance", title: "Inverter Maintenance & Upgrade", desc: "Battery bank upgrades, inverter servicing & panel cleaning.", image: IMAGES.inverter, badge: "Fast Response" },
-  { id: "wiring", title: "House Wiring & Earthing", desc: "Electrical installation, surge protection & earthing systems.", image: IMAGES.wiring, badge: "Safety Focused" }
+  { id: "wiring", title: "House Wiring & Earthing", desc: "Electrical installation, surge protection & earthing systems.", image: IMAGES.wiring, badge: "Safety Focused" },
+  { id: "automation", title: "Power Automation & Changeover", desc: "Automatic changeover, smart power control, protection and reliable backup integration.", image: IMAGES.audit, badge: "Smart Power" }
 ];
 
 type BookingStatus = 'Pending' | 'Confirmed' | 'In Progress' | 'Completed';
@@ -398,6 +399,7 @@ export default function App() {
             <button onClick={() => scrollToSection('calculator')} className="hover:text-amber-400 transition">Solar Calculator</button>
             <button onClick={() => scrollToSection('services')} className="hover:text-amber-400 transition">Services & Booking</button>
             <button onClick={() => scrollToSection('contact')} className="hover:text-amber-400 transition">Contact</button>
+            <button onClick={() => scrollToSection('faq')} className="hover:text-amber-400 transition">FAQs</button>
           </nav>
 
           {/* View Mode Switcher */}
@@ -1118,6 +1120,26 @@ export default function App() {
             </section>
 
             {/* CONTACT US SECTION */}
+             <section id="work" className="space-y-8">
+              <div className="text-center max-w-2xl mx-auto"><span className="text-xs font-bold tracking-widest uppercase text-amber-400">Our Capabilities</span><h2 className="text-3xl lg:text-4xl font-black text-white mt-3">Power Solutions We Deliver</h2><p className="text-sm text-slate-400 mt-2">Explore the types of electrical and energy work we can help plan and deliver. Images are illustrative.</p></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {SERVICE_OPTIONS.map(service => <article key={service.id} className="overflow-hidden rounded-2xl border border-slate-800 bg-[#0e1424]"><img src={service.image} alt={service.title} loading="lazy" decoding="async" className="h-40 w-full object-cover" /><div className="p-4 space-y-2"><h3 className="font-bold text-white">{service.title}</h3><p className="text-xs leading-relaxed text-slate-400">{service.desc}</p><button type="button" onClick={() => { setFormData(prev => ({ ...prev, serviceType: service.title })); scrollToSection('services'); }} className="inline-flex items-center gap-2 pt-2 text-xs font-bold text-amber-400">Book this service <ArrowRight className="w-3 h-3" /></button></div></article>)}
+              </div>
+            </section>
+
+            <section id="faq" className="space-y-6">
+              <div className="text-center max-w-2xl mx-auto"><span className="text-xs font-bold tracking-widest uppercase text-amber-400">Helpful Information</span><h2 className="text-3xl lg:text-4xl font-black text-white mt-3">Frequently Asked Questions</h2><p className="text-sm text-slate-400 mt-2">A few answers before you book a site visit.</p></div>
+              <div className="max-w-4xl mx-auto grid gap-3">
+                {[
+                  ['Do you cover locations outside central Abuja?', 'Yes. Lumina Power System serves customers across Abuja and surrounding areas. Share your exact address in the booking form so we can confirm coverage.'],
+                  ['Can I book a site survey online?', 'Yes. Choose a service, enter your contact and location details, and submit the booking form. A reference number confirms that your request was received; the visit is not confirmed until our team contacts you.'],
+                  ['Can you help size an inverter and battery system?', 'Yes. Use the load calculator for an initial estimate, then book a site survey. Final sizing depends on appliance starting current, usage hours, battery autonomy and site conditions.'],
+                  ['Do you install automatic changeover and power automation?', 'Yes. Select Power Automation & Changeover in the service booking options and describe the equipment or setup you need.'],
+                  ['How do I get a quotation?', 'Submit a site survey or service request with your location and project details. We can assess the requirements and discuss a suitable quotation.'],
+                ].map(([question, answer]) => <details key={question} className="rounded-xl border border-slate-800 bg-[#0e1424] p-5"><summary className="cursor-pointer list-none font-bold text-white flex items-center justify-between gap-4">{question}<span className="text-amber-400 text-xl">+</span></summary><p className="pt-3 text-sm leading-relaxed text-slate-400">{answer}</p></details>)}
+              </div>
+            </section>
+
             <section id="contact" className="bg-[#0e1424] border border-slate-800 rounded-3xl p-8 lg:p-12 shadow-2xl">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 <div className="lg:col-span-5 space-y-6">
