@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { bodyOf, isAdmin, json, safeText, store, unauthorized } from '../lib/shared';
+import { bodyOf, isAdmin, json, safeText, store, unauthorized, withinRateLimit } from '../lib/shared';
 
 export default async function handler(request: Request): Promise<Response> {
   try {
@@ -12,6 +12,7 @@ export default async function handler(request: Request): Promise<Response> {
       return json(200, { clicks: clicks.slice(0, 250), total: clicks.length });
     }
     if (request.method !== 'POST') return json(405, { message: 'Method not allowed.' });
+    if (!(await withinRateLimit(request, 'click', 60, 60 * 1000))) return json(429, { message: 'Too many requests. Please wait and try again later.' });
     const body = await bodyOf(request);
     if (!body) return json(400, { message: 'Invalid request body.' });
     const click = {
