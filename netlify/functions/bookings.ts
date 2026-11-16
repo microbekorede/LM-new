@@ -1,4 +1,4 @@
-import { bodyOf, isAdmin, json, lagosToday, safeText, store, unauthorized, validPhone } from '../lib/shared';
+import { bodyOf, isAdmin, json, lagosToday, safeText, store, unauthorized, validPhone, withinRateLimit } from '../lib/shared';
 
 export default async function handler(request: Request): Promise<Response> {
   try {
@@ -11,6 +11,7 @@ export default async function handler(request: Request): Promise<Response> {
       return json(200, { bookings });
     }
     if (request.method !== 'POST') return json(405, { message: 'Method not allowed.' });
+    if (!(await withinRateLimit(request, 'booking', 5, 60 * 60 * 1000))) return json(429, { message: 'Too many booking attempts. Please wait before trying again.' });
     const body = await bodyOf(request);
     if (!body) return json(400, { message: 'Invalid request body.' });
     const customerName = safeText(body.customerName, 100);
@@ -35,6 +36,35 @@ export default async function handler(request: Request): Promise<Response> {
       status: 'Pending', assignedEngineer: '', createdAt: new Date().toISOString(),
     };
     await db.setJSON(`booking:${id}`, booking);
+
+    // Email is optional: booking storage remains successful even if notifications are not configured.
+    const apiKey = process.env.RESEND_API_KEY;
+    const notifyTo = process.env.BOOKING_NOTIFICATION_EMAIL;
+    const from = process.env.BOOKING_EMAIL_FROM;
+    if (apiKey && notifyTo && from) {
+      const details = [
+        `Booking reference: ${id}`,
+        `Customer: ${customerName}`,
+        `Phone: ${phone}`,
+        `Email: ${email || 'Not provided'}`,
+        `Service: ${booking.serviceType}`,
+        `Property: ${booking.propertyType}`,
+        `Estimated load: ${booking.estimatedLoad}`,
+        `Address: ${address}`,
+        `Preferred visit: ${preferredDate} — ${booking.preferredTime}`,
+        `Notes: ${booking.notes || 'None'}`,
+      ].join('\\n');
+      try {
+        const notice = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from, to: [notifyTo], subject: `New Lumina booking — ${id}`, text: details }),
+        });
+        if (!notice.ok) console.error('[bookings] Notification email failed:', notice.status, await notice.text());
+      } catch (emailError) {
+        console.error('[bookings] Notification email could not be sent:', emailError);
+      }
+    }
     return json(201, { booking });
   } catch (error) {
     console.error('[bookings] Request failed:', error);
