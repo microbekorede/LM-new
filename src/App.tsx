@@ -42,6 +42,7 @@ type Appliance = { id: string; name: string; watts: number; count: number };
 type BookingForm = Omit<Booking, 'id' | 'status' | 'assignedEngineer' | 'image'>;
 type ContactForm = { name: string; phone: string; email: string; message: string };
 type ContactMessage = { id: string; name: string; phone: string; email: string; message: string; createdAt: string };
+type ClickRecord = { id: string; label: string; destination: string; page: string; createdAt: string };
 
 async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
@@ -88,6 +89,9 @@ export default function App() {
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
+  const [clickRecords, setClickRecords] = useState<ClickRecord[]>([]);
+  const [clickTotal, setClickTotal] = useState(0);
+  const [clicksLoading, setClicksLoading] = useState(false);
   const [contactForm, setContactForm] = useState<ContactForm>({ name: '', phone: '', email: '', message: '' });
 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -124,12 +128,46 @@ export default function App() {
   };
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
+  useEffect(() => {
+    const recordClick = (event: MouseEvent) => {
+      if (activeTab !== 'customer') return;
+      const target = event.target instanceof Element ? event.target.closest('a, button') : null;
+      if (!(target instanceof HTMLElement)) return;
+      const label = (target.getAttribute('aria-label') || target.innerText || target.getAttribute('title') || 'Website click').trim().replace(/\s+/g, ' ').slice(0, 100);
+      const destination = target instanceof HTMLAnchorElement ? target.href : (target.getAttribute('href') || '');
+      void fetch('/api/track-click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label, destination, page: window.location.pathname }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+    document.addEventListener('click', recordClick, true);
+    return () => document.removeEventListener('click', recordClick, true);
+  }, [activeTab]);
+
+
+
+  const loadAdminClicks = useCallback(async () => {
+    setClicksLoading(true);
+    try {
+      const result = await apiRequest<{ clicks: ClickRecord[]; total: number }>('/api/track-click');
+      setClickRecords(Array.isArray(result.clicks) ? result.clicks : []);
+      setClickTotal(Number(result.total) || 0);
+    } catch (error) {
+      showToast(error instanceof Error ? `Click activity could not be loaded: ${error.message}` : 'Click activity could not be loaded.');
+    } finally {
+      setClicksLoading(false);
+    }
+  }, []);
+
   const loadAdminBookings = useCallback(async () => {
     setBookingsLoading(true);
     setBookingError('');
     try {
       const result = await apiRequest<{ bookings: Booking[] }>('/api/bookings');
       setBookings(Array.isArray(result.bookings) ? result.bookings : []);
+      await loadAdminClicks();
       try {
         const inbox = await apiRequest<{ messages: ContactMessage[] }>('/api/contact');
         setContactMessages(Array.isArray(inbox.messages) ? inbox.messages : []);
@@ -1363,7 +1401,25 @@ export default function App() {
                   </div>
                 </div>
 
-                <section className="bg-[#0e1424] border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                                <section className="bg-[#0e1424] border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div><h3 className="text-lg font-bold text-white">Website Click Activity</h3><p className="text-xs text-slate-400">A record of buttons and links visitors click on the public website.</p></div>
+                    <div className="flex items-center gap-3"><span className="text-sm font-black text-amber-400">{clickTotal.toLocaleString()} total clicks</span><button type="button" onClick={loadAdminClicks} disabled={clicksLoading} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:border-amber-400 disabled:opacity-50">{clicksLoading ? 'Refreshing…' : 'Refresh'}</button></div>
+                  </div>
+                  <div className="overflow-x-auto rounded-xl border border-slate-800">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-900 text-slate-400 uppercase tracking-wider"><tr><th className="px-4 py-3">Button / Link</th><th className="px-4 py-3">Page</th><th className="px-4 py-3">Destination</th><th className="px-4 py-3">Date & Time</th></tr></thead>
+                      <tbody className="divide-y divide-slate-800">
+                        {clickRecords.length === 0 ? <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-500">{clicksLoading ? 'Loading click activity…' : 'No website clicks recorded yet. New visitor clicks will appear here.'}</td></tr> : clickRecords.map(click => (
+                          <tr key={click.id} className="hover:bg-slate-900/50"><td className="px-4 py-3 font-semibold text-white">{click.label}</td><td className="px-4 py-3 text-slate-400">{click.page}</td><td className="px-4 py-3 text-slate-400 max-w-[220px] truncate">{click.destination || 'Button action'}</td><td className="px-4 py-3 whitespace-nowrap text-slate-400">{new Date(click.createdAt).toLocaleString()}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Showing the latest {clickRecords.length} of {clickTotal} recorded clicks. Visitor names and private information are not collected.</p>
+                </section>
+
+<section className="bg-[#0e1424] border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-lg font-bold text-white">Customer Inquiries</h3>
