@@ -179,7 +179,7 @@ export default function App() {
     } finally {
       setBookingsLoading(false);
     }
-  }, []);
+  }, [loadAdminClicks]);
 
   // Restore an existing server session after a refresh; the server remains the
   // authority and all admin API routes independently enforce authorization.
